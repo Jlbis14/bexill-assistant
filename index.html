@@ -1,0 +1,70 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bexhill Assistant</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 100px; }
+    button { padding: 10px 20px; font-size: 18px; }
+    #status { margin-top: 20px; font-size: 16px; color: #555; }
+  </style>
+</head>
+<body>
+  <h1>🎙️ Ask BA – The Bexhill Assistant</h1>
+  <button id="start">🎧 Start Talking</button>
+  <p id="status">Waiting to start...</p>
+
+  <script type="module">
+    const API_KEY = "CEOGADWZGaXDJYFAGQDKdUcUQioTO5IHQkWFb3FKEdVF0q9S";
+
+    const startBtn = document.getElementById('start');
+    const status = document.getElementById('status');
+
+    async function startConversation() {
+      status.textContent = "🎙️ Listening...";
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      let audioChunks = [];
+
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        status.textContent = "🧠 Thinking...";
+
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const formData = new FormData();
+        formData.append('voice', audioBlob);
+
+        const response = await fetch("https://api.hume.ai/v1/voice/agents/chat", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${API_KEY}`
+          },
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.audio && result.audio.url) {
+          const audio = new Audio(result.audio.url);
+          audio.play();
+          status.textContent = "✅ Response received. Tap again to ask something new.";
+        } else {
+          status.textContent = "❌ Error receiving audio. Try again.";
+        }
+
+        audioChunks = [];
+      };
+
+      mediaRecorder.start();
+      setTimeout(() => {
+        mediaRecorder.stop();
+        stream.getTracks().forEach(track => track.stop());
+      }, 5000); // 5 sec recording
+    }
+
+    startBtn.addEventListener('click', startConversation);
+  </script>
+</body>
+</html>
